@@ -1,0 +1,43 @@
+name: test
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+  workflow_dispatch:
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86_64]
+
+    steps:
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+
+    - uses: actions/checkout@master
+      with:
+        # otherwise, you will failed to push refs to dest repo
+        fetch-depth: 0
+
+    - name: Install alcor
+      run: |
+        pip install git+https://github.com/UrsaAlcor/mocli.git
+        alcor init "$(pwd)/aclor"
+        alcor activate --auto
+
+    - name: Install {{cookiecutter.project_name}}
+      run: |
+        source /home/runner/.config/mocli/bashrc
+        activate_alcor 
+
+        version=$(git describe --tags --abbrev=0)
+
+        alcor install {{cookiecutter.project_name}} --url https://github.com/UrsaAlcor/{{cookiecutter.project_name}}/releases/download/$version/{{cookiecutter.project_name}}_x86_64.zip
+        module load {{cookiecutter.project_name}}
+        gcc tests/{{cookiecutter.project_name}}_main.c -o {{cookiecutter.project_name}}_main -l{{cookiecutter.project_name}}

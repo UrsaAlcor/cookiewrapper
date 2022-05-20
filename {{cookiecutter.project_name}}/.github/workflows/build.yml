@@ -1,0 +1,52 @@
+name: build
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+  workflow_dispatch:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86_64]
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Submodules
+      run: |
+        git submodule update --init --recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt install coreutils gcc
+
+    - name: Build & Install {{cookiecutter.project_name}}
+      run: |
+        bash setup.sh {{ ${{ matrix.arch }} }}
+
+    - name: Package Module
+      run: |
+        zip -r {{cookiecutter.project_name}}_{{ ${{ matrix.arch }} }}.zip lmod 
+  
+    - name: Get release
+      if: startsWith(github.ref, 'refs/tags')
+      id: get_release
+      uses: bruceadams/get-release@v1.2.3
+      env:
+        GITHUB_TOKEN: {{ ${{ github.token }} }}
+
+    - name: Upload Release Binaries
+      if: startsWith(github.ref, 'refs/tags')
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: {{ ${{ github.token }} }}
+      with:
+        upload_url: {{ ${{ steps.get_release.outputs.upload_url }} }}
+        asset_path: {{cookiecutter.project_name}}_{{ ${{ matrix.arch }} }}.zip
+        asset_name: {{cookiecutter.project_name}}_{{ ${{ matrix.arch }} }}.zip
+        asset_content_type: application/octet-stream
